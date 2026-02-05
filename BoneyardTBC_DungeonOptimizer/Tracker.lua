@@ -419,6 +419,11 @@ function Tracker.AdvanceStep()
     if Tracker.onStepAdvanced then
         Tracker.onStepAdvanced(db.currentStep)
     end
+
+    -- Broadcast updated status to guild/party
+    if BoneyardTBC_DO.Sync and BoneyardTBC_DO.Sync.BroadcastAll then
+        BoneyardTBC_DO.Sync.BroadcastAll()
+    end
 end
 
 --------------------------------------------------------------------------------
@@ -446,6 +451,11 @@ function Tracker.IncrementDungeonRun(dungeonKey)
 
     -- Check if this run triggers step advancement
     Tracker.CheckStepAdvancement()
+
+    -- Broadcast updated status to guild/party
+    if BoneyardTBC_DO.Sync and BoneyardTBC_DO.Sync.BroadcastAll then
+        BoneyardTBC_DO.Sync.BroadcastAll()
+    end
 end
 
 --------------------------------------------------------------------------------
@@ -474,6 +484,7 @@ function Tracker.RefreshUI()
     if DO.RefreshSetupTab then DO:RefreshSetupTab() end
     if DO.RefreshRouteTab then DO:RefreshRouteTab() end
     if DO.RefreshTrackerTab then DO:RefreshTrackerTab() end
+    if DO.RefreshGuildTab then DO:RefreshGuildTab() end
 end
 
 --------------------------------------------------------------------------------

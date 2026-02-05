@@ -20,6 +20,20 @@ function DO:OnInitialize(db)
         db.currentStep = 1
         db.completedSteps = {}
         db.dungeonRunCounts = {}
+        db.enableGuildSync = true
+        db.enablePartySync = true
+        db.enableSyncAlerts = true
+        db.guildRoster = {}
+    end
+
+    -- Migrate: add sync defaults for existing installs
+    if db.enableGuildSync == nil then
+        db.enableGuildSync = true
+        db.enablePartySync = true
+        db.enableSyncAlerts = true
+    end
+    if not db.guildRoster then
+        db.guildRoster = {}
     end
 
     -- Schedule initialization that needs other systems ready
@@ -29,6 +43,8 @@ function DO:OnInitialize(db)
         frame:UnregisterEvent("PLAYER_LOGIN")
         -- Initialize tracker
         BoneyardTBC_DO.Tracker.Initialize()
+        -- Initialize sync system
+        BoneyardTBC_DO.Sync.Initialize()
         -- Register tabs with main frame
         if BoneyardTBC.MainFrame and BoneyardTBC.MainFrame.AddModuleTabs then
             BoneyardTBC.MainFrame:AddModuleTabs(DO)
@@ -41,6 +57,7 @@ function DO:GetTabPanels()
         { name = "Setup", create = function(parent) return self:CreateSetupTab(parent) end },
         { name = "Route", create = function(parent) return self:CreateRouteTab(parent) end },
         { name = "Tracker", create = function(parent) return self:CreateTrackerTab(parent) end },
+        { name = "Guild", create = function(parent) return self:CreateGuildTab(parent) end },
     }
 end
 

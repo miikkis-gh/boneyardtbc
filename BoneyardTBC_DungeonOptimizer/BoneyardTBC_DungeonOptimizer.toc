@@ -9,4 +9,5 @@ Data.lua
 DungeonOptimizer.lua
 Optimizer.lua
 Tracker.lua
+Sync.lua
 UI.lua
