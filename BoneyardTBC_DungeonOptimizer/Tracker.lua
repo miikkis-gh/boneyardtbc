@@ -53,6 +53,7 @@ function Tracker.Initialize()
     -- Instance tracking state
     self.inInstance = false
     self.currentInstance = nil
+    self.instanceEntries = {}
 end
 
 --------------------------------------------------------------------------------
@@ -116,6 +117,7 @@ function Tracker.OnEvent(event, ...)
         if BoneyardTBC_DO.Optimizer and BoneyardTBC_DO.Optimizer.Recalculate then
             BoneyardTBC_DO.Optimizer.Recalculate()
         end
+        Tracker.RefreshUI()
 
     elseif event == "PLAYER_XP_UPDATE" or event == "PLAYER_LEVEL_UP" then
         if Tracker.playerState then
@@ -126,6 +128,7 @@ function Tracker.OnEvent(event, ...)
             Tracker.ReadPlayerState()
         end
         Tracker.CheckStepAdvancement()
+        Tracker.RefreshUI()
 
     elseif event == "UPDATE_FACTION" then
         if Tracker.playerState then
@@ -136,6 +139,7 @@ function Tracker.OnEvent(event, ...)
             Tracker.ReadPlayerState()
         end
         Tracker.CheckStepAdvancement()
+        Tracker.RefreshUI()
 
     elseif event == "QUEST_ACCEPTED" then
         -- Cache quest name for later lookup on QUEST_TURNED_IN
@@ -177,6 +181,23 @@ function Tracker.OnEvent(event, ...)
                 -- Just entered an instance
                 Tracker.inInstance = true
                 Tracker.currentInstance = GetInstanceInfo()
+
+                -- Track instance entry for lockout warning
+                table.insert(Tracker.instanceEntries, time())
+                -- Clean up entries older than 1 hour
+                local cutoff = time() - 3600
+                local i = 1
+                while i <= #Tracker.instanceEntries do
+                    if Tracker.instanceEntries[i] < cutoff then
+                        table.remove(Tracker.instanceEntries, i)
+                    else
+                        i = i + 1
+                    end
+                end
+                -- Warning if at 5/5
+                if #Tracker.instanceEntries >= 5 then
+                    print("|cffff0000Boneyard WARNING:|r Instance lockout reached (5/5 per hour)! Wait before entering another dungeon.")
+                end
             end
         else
             if Tracker.inInstance then
@@ -432,6 +453,17 @@ function Tracker.SkipStep()
     else
         print("|cff00ccffBoneyard:|r Can only skip travel or checkpoint steps.")
     end
+end
+
+--------------------------------------------------------------------------------
+-- RefreshUI: Notify the module UI to refresh all tabs
+--------------------------------------------------------------------------------
+function Tracker.RefreshUI()
+    local DO = BoneyardTBC_DO.module
+    if not DO then return end
+    if DO.RefreshSetupTab then DO:RefreshSetupTab() end
+    if DO.RefreshRouteTab then DO:RefreshRouteTab() end
+    if DO.RefreshTrackerTab then DO:RefreshTrackerTab() end
 end
 
 --------------------------------------------------------------------------------
