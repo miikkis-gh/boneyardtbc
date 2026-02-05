@@ -1,0 +1,12 @@
+## Interface: 20505
+## Title: Boneyard TBC Special - Dungeon Optimizer
+## Notes: Dungeon leveling & reputation route optimizer (58-70)
+## Author: miikkis
+## Version: 1.0.0
+## Dependencies: BoneyardTBC
+
+Data.lua
+DungeonOptimizer.lua
+Optimizer.lua
+Tracker.lua
+UI.lua
