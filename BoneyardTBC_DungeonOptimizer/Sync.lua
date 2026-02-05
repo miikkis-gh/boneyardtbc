@@ -398,7 +398,11 @@ function Sync.CheckDungeonMatchAlert(senderName, senderData)
     if myDungeon == senderData.dungeon then
         local dungeon = BoneyardTBC_DO.DUNGEONS[myDungeon]
         local dungeonName = (dungeon and dungeon.name) or myDungeon
-        print("|cff00ccffBoneyard:|r " .. senderName .. " is also running " .. dungeonName .. "!")
+        if BoneyardTBC_DO.Overlay then
+            BoneyardTBC_DO.Overlay.FireAlert("GUILD_MATCH", senderName .. " is also running " .. dungeonName .. "!")
+        else
+            print("|cff00ccffBoneyard:|r " .. senderName .. " is also running " .. dungeonName .. "!")
+        end
     end
 end
 

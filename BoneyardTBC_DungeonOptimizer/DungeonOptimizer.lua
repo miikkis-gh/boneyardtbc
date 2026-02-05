@@ -24,6 +24,9 @@ function DO:OnInitialize(db)
         db.enablePartySync = true
         db.enableSyncAlerts = true
         db.guildRoster = {}
+        db.showOverlay = true
+        db.enableSoundAlerts = true
+        db.overlayPosition = { point = "TOPRIGHT", x = -20, y = -200 }
     end
 
     -- Migrate: add sync defaults for existing installs
@@ -35,6 +38,12 @@ function DO:OnInitialize(db)
     if not db.guildRoster then
         db.guildRoster = {}
     end
+    -- Migrate: add overlay defaults for existing installs
+    if db.showOverlay == nil then
+        db.showOverlay = true
+        db.enableSoundAlerts = true
+        db.overlayPosition = { point = "TOPRIGHT", x = -20, y = -200 }
+    end
 
     -- Schedule initialization that needs other systems ready
     local initFrame = CreateFrame("Frame")
@@ -45,6 +54,8 @@ function DO:OnInitialize(db)
         BoneyardTBC_DO.Tracker.Initialize()
         -- Initialize sync system
         BoneyardTBC_DO.Sync.Initialize()
+        -- Initialize overlay (after tracker so playerState is available)
+        BoneyardTBC_DO.Overlay.Initialize()
         -- Register tabs with main frame
         if BoneyardTBC.MainFrame and BoneyardTBC.MainFrame.AddModuleTabs then
             BoneyardTBC.MainFrame:AddModuleTabs(DO)

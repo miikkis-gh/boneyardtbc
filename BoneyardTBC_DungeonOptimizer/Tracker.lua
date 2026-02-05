@@ -138,6 +138,10 @@ function Tracker.OnEvent(event, ...)
         else
             Tracker.ReadPlayerState()
         end
+        -- Check for rep milestones (standing changes)
+        if BoneyardTBC_DO.Overlay then
+            BoneyardTBC_DO.Overlay.CheckRepMilestones()
+        end
         Tracker.CheckStepAdvancement()
         Tracker.RefreshUI()
 
@@ -195,9 +199,17 @@ function Tracker.OnEvent(event, ...)
                         i = i + 1
                     end
                 end
-                -- Warning if at 5/5
-                if #Tracker.instanceEntries >= 5 then
-                    print("|cffff0000Boneyard WARNING:|r Instance lockout reached (5/5 per hour)! Wait before entering another dungeon.")
+                -- Lockout warnings via Overlay
+                local Overlay = BoneyardTBC_DO.Overlay
+                if Overlay then
+                    if #Tracker.instanceEntries >= 5 then
+                        local oldest = Tracker.instanceEntries[1]
+                        local waitMins = math.ceil((3600 - (time() - oldest)) / 60)
+                        Overlay.FireAlert("LOCKOUT_HIT", "Lockout reached! Wait " .. waitMins .. "m.")
+                    elseif #Tracker.instanceEntries >= 4 then
+                        Overlay.FireAlert("LOCKOUT_WARNING", "4/5 instances. Slow down!")
+                    end
+                    Overlay.OnInstanceEnter()
                 end
             end
         else
@@ -206,6 +218,11 @@ function Tracker.OnEvent(event, ...)
                 local exitedInstance = Tracker.currentInstance
                 Tracker.inInstance = false
                 Tracker.currentInstance = nil
+
+                -- Notify overlay of instance exit
+                if BoneyardTBC_DO.Overlay then
+                    BoneyardTBC_DO.Overlay.OnInstanceExit()
+                end
 
                 if exitedInstance then
                     local dungeonKey = Tracker.FindDungeonKeyByName(exitedInstance)
@@ -413,7 +430,11 @@ function Tracker.AdvanceStep()
         end
     end
 
-    print("|cff00ccffBoneyard:|r Step " .. currentStepIndex .. " complete! Next: " .. nextDesc)
+    if BoneyardTBC_DO.Overlay then
+        BoneyardTBC_DO.Overlay.FireAlert("STEP_ADVANCED", "Step " .. currentStepIndex .. " complete! Next: " .. nextDesc)
+    else
+        print("|cff00ccffBoneyard:|r Step " .. currentStepIndex .. " complete! Next: " .. nextDesc)
+    end
 
     -- Notify UI callback if set
     if Tracker.onStepAdvanced then
@@ -447,7 +468,11 @@ function Tracker.IncrementDungeonRun(dungeonKey)
     local dungeonName = (dungeon and dungeon.name) or dungeonKey
     local count = db.dungeonRunCounts[dungeonKey]
 
-    print("|cff00ccffBoneyard:|r " .. dungeonName .. " run " .. count .. " complete")
+    if BoneyardTBC_DO.Overlay then
+        BoneyardTBC_DO.Overlay.FireAlert("RUN_COMPLETE", dungeonName .. " run " .. count .. " complete")
+    else
+        print("|cff00ccffBoneyard:|r " .. dungeonName .. " run " .. count .. " complete")
+    end
 
     -- Check if this run triggers step advancement
     Tracker.CheckStepAdvancement()

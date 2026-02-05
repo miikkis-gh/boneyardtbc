@@ -309,11 +309,26 @@ function DO:CreateSetupTab(parent)
     alertsCB:SetPoint("TOPLEFT", partySyncCB, "BOTTOMLEFT", 0, -2)
     W.alertsCB = alertsCB
 
+    local showOverlayCB = BoneyardTBC.Widgets.CreateCheckbox(leftCol, "Show Overlay", db.showOverlay ~= false, function(checked)
+        db.showOverlay = checked
+        if BoneyardTBC_DO.Overlay then
+            BoneyardTBC_DO.Overlay.SetVisible(checked)
+        end
+    end)
+    showOverlayCB:SetPoint("TOPLEFT", alertsCB, "BOTTOMLEFT", 0, -2)
+    W.showOverlayCB = showOverlayCB
+
+    local soundAlertsCB = BoneyardTBC.Widgets.CreateCheckbox(leftCol, "Enable Sound Alerts", db.enableSoundAlerts ~= false, function(checked)
+        db.enableSoundAlerts = checked
+    end)
+    soundAlertsCB:SetPoint("TOPLEFT", showOverlayCB, "BOTTOMLEFT", 0, -2)
+    W.soundAlertsCB = soundAlertsCB
+
     ----------------------------------------------------------------
     -- 4. REPUTATION GOALS
     ----------------------------------------------------------------
 
-    local repHeader = CreateSectionHeader(leftCol, "Reputation Goals", 0, -310)
+    local repHeader = CreateSectionHeader(leftCol, "Reputation Goals", 0, -355)
 
     -- Column headers
     local colFaction = CreateLabel(leftCol, "Faction", "GameFontNormalSmall")
