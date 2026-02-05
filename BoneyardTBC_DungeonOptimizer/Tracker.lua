@@ -1,0 +1,454 @@
+--------------------------------------------------------------------------------
+-- Tracker.lua
+-- Event-driven tracker with auto-advancement logic for the DungeonOptimizer.
+-- Listens to WoW game events, reads player state, and auto-advances route
+-- steps when completion conditions are met.
+--------------------------------------------------------------------------------
+
+BoneyardTBC_DO.Tracker = {}
+
+local Tracker = BoneyardTBC_DO.Tracker
+
+-- Standing bases from Neutral 0 (standingId -> cumulative rep at start of bracket)
+local STANDING_BASES = {
+    [4] = 0,      -- Neutral
+    [5] = 3000,   -- Friendly
+    [6] = 6000,   -- Honored
+    [7] = 12000,  -- Revered
+    [8] = 21000,  -- Exalted
+}
+
+-- Quest name cache: questID -> quest title (populated on QUEST_ACCEPTED)
+Tracker.questCache = {}
+
+-- Callback that UI.lua can set for step advancement notifications
+Tracker.onStepAdvanced = nil
+
+--------------------------------------------------------------------------------
+-- Initialize: Create hidden event frame and register events
+--------------------------------------------------------------------------------
+function Tracker.Initialize()
+    local self = Tracker
+
+    self.eventFrame = CreateFrame("Frame")
+
+    local events = {
+        "PLAYER_ENTERING_WORLD",
+        "PLAYER_LEVEL_UP",
+        "PLAYER_XP_UPDATE",
+        "UPDATE_FACTION",
+        "QUEST_TURNED_IN",
+        "QUEST_ACCEPTED",
+        "ZONE_CHANGED_NEW_AREA",
+    }
+
+    for _, event in ipairs(events) do
+        self.eventFrame:RegisterEvent(event)
+    end
+
+    self.eventFrame:SetScript("OnEvent", function(_, event, ...)
+        Tracker.OnEvent(event, ...)
+    end)
+
+    -- Instance tracking state
+    self.inInstance = false
+    self.currentInstance = nil
+end
+
+--------------------------------------------------------------------------------
+-- ReadPlayerState: Read current player info from WoW API
+--------------------------------------------------------------------------------
+function Tracker.ReadPlayerState()
+    local self = Tracker
+
+    local raceLocal, raceEN = UnitRace("player")
+
+    local reps = {}
+    for factionKey, factionData in pairs(BoneyardTBC_DO.FACTIONS) do
+        reps[factionKey] = Tracker.GetTotalRep(factionData.id)
+    end
+
+    self.playerState = {
+        level    = UnitLevel("player"),
+        xp       = UnitXP("player"),
+        xpMax    = UnitXPMax("player"),
+        race     = raceLocal,
+        raceEN   = raceEN,
+        faction  = UnitFactionGroup("player"),
+        reps     = reps,
+        isHuman  = (raceEN == "Human"),
+    }
+
+    return self.playerState
+end
+
+--------------------------------------------------------------------------------
+-- GetTotalRep: Convert WoW standing data to absolute rep from Neutral 0
+--
+-- GetFactionInfoByID returns:
+--   name, description, standingId, barMin, barMax, barValue, ...
+-- standingId: 4=Neutral, 5=Friendly, 6=Honored, 7=Revered, 8=Exalted
+-- barValue is the raw total rep within the current standing bracket.
+-- barValue - barMin = progress within the current standing.
+-- totalRep = standingBase + (barValue - barMin)
+--------------------------------------------------------------------------------
+function Tracker.GetTotalRep(factionID)
+    local name, _, standingId, barMin, barMax, barValue = GetFactionInfoByID(factionID)
+    if not name then
+        return 0
+    end
+
+    local base = STANDING_BASES[standingId]
+    if not base then
+        -- Below Neutral (Hated/Hostile/Unfriendly) -- not expected for these factions
+        return 0
+    end
+
+    return base + (barValue - barMin)
+end
+
+--------------------------------------------------------------------------------
+-- OnEvent: Main event dispatcher
+--------------------------------------------------------------------------------
+function Tracker.OnEvent(event, ...)
+    if event == "PLAYER_ENTERING_WORLD" then
+        Tracker.ReadPlayerState()
+        if BoneyardTBC_DO.Optimizer and BoneyardTBC_DO.Optimizer.Recalculate then
+            BoneyardTBC_DO.Optimizer.Recalculate()
+        end
+
+    elseif event == "PLAYER_XP_UPDATE" or event == "PLAYER_LEVEL_UP" then
+        if Tracker.playerState then
+            Tracker.playerState.level = UnitLevel("player")
+            Tracker.playerState.xp = UnitXP("player")
+            Tracker.playerState.xpMax = UnitXPMax("player")
+        else
+            Tracker.ReadPlayerState()
+        end
+        Tracker.CheckStepAdvancement()
+
+    elseif event == "UPDATE_FACTION" then
+        if Tracker.playerState then
+            for factionKey, factionData in pairs(BoneyardTBC_DO.FACTIONS) do
+                Tracker.playerState.reps[factionKey] = Tracker.GetTotalRep(factionData.id)
+            end
+        else
+            Tracker.ReadPlayerState()
+        end
+        Tracker.CheckStepAdvancement()
+
+    elseif event == "QUEST_ACCEPTED" then
+        -- Cache quest name for later lookup on QUEST_TURNED_IN
+        local questID = ...
+        if questID then
+            local questTitle = C_QuestLog and C_QuestLog.GetQuestInfo and C_QuestLog.GetQuestInfo(questID)
+            if not questTitle then
+                -- Fallback: scan quest log for this quest ID
+                questTitle = Tracker.GetQuestTitleFromLog(questID)
+            end
+            if questTitle then
+                Tracker.questCache[questID] = questTitle
+            end
+        end
+
+    elseif event == "QUEST_TURNED_IN" then
+        local questID = ...
+        local questTitle = Tracker.questCache[questID]
+        if not questTitle and questID then
+            -- Try to resolve the quest name if not cached
+            if C_QuestLog and C_QuestLog.GetQuestInfo then
+                questTitle = C_QuestLog.GetQuestInfo(questID)
+            end
+            if not questTitle then
+                questTitle = Tracker.GetQuestTitleFromLog(questID)
+            end
+        end
+        if questTitle then
+            Tracker.CheckQuestStep(questTitle)
+        end
+
+    elseif event == "ZONE_CHANGED_NEW_AREA" then
+        local zone = GetRealZoneText()
+
+        -- Dungeon entry/exit detection
+        local inInstance, instanceType = IsInInstance()
+        if inInstance and (instanceType == "party" or instanceType == "raid") then
+            if not Tracker.inInstance then
+                -- Just entered an instance
+                Tracker.inInstance = true
+                Tracker.currentInstance = GetInstanceInfo()
+            end
+        else
+            if Tracker.inInstance then
+                -- Just exited an instance -- count the completed run
+                local exitedInstance = Tracker.currentInstance
+                Tracker.inInstance = false
+                Tracker.currentInstance = nil
+
+                if exitedInstance then
+                    local dungeonKey = Tracker.FindDungeonKeyByName(exitedInstance)
+                    if dungeonKey then
+                        Tracker.IncrementDungeonRun(dungeonKey)
+                    end
+                end
+            end
+        end
+
+        -- Check travel step advancement
+        if zone and zone ~= "" then
+            Tracker.CheckTravelStep(zone)
+        end
+    end
+end
+
+--------------------------------------------------------------------------------
+-- GetQuestTitleFromLog: Scan quest log for a quest by ID (TBC fallback)
+--------------------------------------------------------------------------------
+function Tracker.GetQuestTitleFromLog(questID)
+    local numEntries = GetNumQuestLogEntries and GetNumQuestLogEntries() or 0
+    for i = 1, numEntries do
+        local title, _, _, isHeader, _, _, _, id = GetQuestLogTitle(i)
+        if not isHeader and id == questID then
+            return title
+        end
+    end
+    return nil
+end
+
+--------------------------------------------------------------------------------
+-- FindDungeonKeyByName: Map instance name -> dungeon key
+--------------------------------------------------------------------------------
+function Tracker.FindDungeonKeyByName(instanceName)
+    if not instanceName then return nil end
+    local lowerName = instanceName:lower()
+    for key, dungeon in pairs(BoneyardTBC_DO.DUNGEONS) do
+        if dungeon.name:lower() == lowerName then
+            return key
+        end
+    end
+    return nil
+end
+
+--------------------------------------------------------------------------------
+-- GetCurrentStep: Get the current step data from the last calculated route
+--------------------------------------------------------------------------------
+function Tracker.GetCurrentStep()
+    local db = BoneyardTBC_DO.module and BoneyardTBC_DO.module.db
+    if not db then return nil, nil end
+
+    local currentStepIndex = db.currentStep or 1
+    local lastResult = BoneyardTBC_DO.Optimizer and BoneyardTBC_DO.Optimizer.lastResult
+    if not lastResult or not lastResult.route then return nil, nil end
+
+    -- Find the step in the route that matches the current step index
+    for _, step in ipairs(lastResult.route) do
+        if step.step == currentStepIndex then
+            return step, currentStepIndex
+        end
+    end
+
+    return nil, currentStepIndex
+end
+
+--------------------------------------------------------------------------------
+-- CheckStepAdvancement: Check if current step's conditions are met
+--------------------------------------------------------------------------------
+function Tracker.CheckStepAdvancement()
+    local step, stepIndex = Tracker.GetCurrentStep()
+    if not step then return end
+    if not Tracker.playerState then return end
+
+    local db = BoneyardTBC_DO.module and BoneyardTBC_DO.module.db
+    if not db then return end
+
+    if step.type == "dungeon" then
+        local advanced = false
+
+        -- Check rep goal
+        if step.repGoal and step.faction then
+            local targetRep = BoneyardTBC_DO.REP_THRESHOLDS[step.repGoal]
+            local currentRep = Tracker.playerState.reps[step.faction] or 0
+            if targetRep and currentRep >= targetRep then
+                -- Rep goal met -- also check level goal if present
+                if step.levelGoal then
+                    if Tracker.playerState.level >= step.levelGoal then
+                        advanced = true
+                    end
+                else
+                    advanced = true
+                end
+            end
+        end
+
+        -- Check level goal (without rep goal)
+        if not advanced and step.levelGoal and not step.repGoal then
+            if Tracker.playerState.level >= step.levelGoal then
+                advanced = true
+            end
+        end
+
+        -- Check calculated runs (for steps with neither repGoal nor levelGoal,
+        -- or as a fallback completion check)
+        if not advanced and not step.repGoal and not step.levelGoal then
+            if step.calculatedRuns then
+                local dungeonKey = step.dungeon
+                local runCount = (db.dungeonRunCounts and db.dungeonRunCounts[dungeonKey]) or 0
+                if runCount >= step.calculatedRuns then
+                    advanced = true
+                end
+            end
+        end
+
+        if advanced then
+            Tracker.AdvanceStep()
+        end
+
+    -- Quest and travel steps are handled by their own check functions
+    -- Checkpoint steps never auto-advance
+    end
+end
+
+--------------------------------------------------------------------------------
+-- CheckQuestStep: Check if current step is a quest step matching the given name
+--------------------------------------------------------------------------------
+function Tracker.CheckQuestStep(questName)
+    local step = Tracker.GetCurrentStep()
+    if not step then return end
+    if step.type ~= "quest" then return end
+
+    if step.quest and questName then
+        if step.quest:lower() == questName:lower() then
+            Tracker.AdvanceStep()
+        end
+    end
+end
+
+--------------------------------------------------------------------------------
+-- CheckTravelStep: Check if current step is a travel step matching the zone
+--------------------------------------------------------------------------------
+function Tracker.CheckTravelStep(zone)
+    local step = Tracker.GetCurrentStep()
+    if not step then return end
+    if step.type ~= "travel" then return end
+
+    if step.zone and zone then
+        if step.zone:lower() == zone:lower() then
+            Tracker.AdvanceStep()
+        end
+    end
+end
+
+--------------------------------------------------------------------------------
+-- AdvanceStep: Mark current step complete and move to the next
+--------------------------------------------------------------------------------
+function Tracker.AdvanceStep()
+    local db = BoneyardTBC_DO.module and BoneyardTBC_DO.module.db
+    if not db then return end
+
+    local currentStepIndex = db.currentStep or 1
+
+    -- Mark current step as completed
+    if not db.completedSteps then
+        db.completedSteps = {}
+    end
+    db.completedSteps[currentStepIndex] = true
+
+    -- Increment to next step
+    db.currentStep = currentStepIndex + 1
+
+    -- Find next step description for the chat message
+    local nextStep = nil
+    local lastResult = BoneyardTBC_DO.Optimizer and BoneyardTBC_DO.Optimizer.lastResult
+    if lastResult and lastResult.route then
+        for _, step in ipairs(lastResult.route) do
+            if step.step == db.currentStep then
+                nextStep = step
+                break
+            end
+        end
+    end
+
+    local nextDesc = "End of route"
+    if nextStep then
+        if nextStep.type == "dungeon" then
+            local dungeon = BoneyardTBC_DO.DUNGEONS[nextStep.dungeon]
+            nextDesc = (dungeon and dungeon.name) or nextStep.dungeon
+        elseif nextStep.type == "quest" then
+            nextDesc = (nextStep.action or "") .. " " .. (nextStep.quest or "")
+        elseif nextStep.type == "travel" then
+            nextDesc = nextStep.text or "Travel"
+        elseif nextStep.type == "checkpoint" then
+            nextDesc = nextStep.text or "Checkpoint"
+        end
+    end
+
+    print("|cff00ccffBoneyard:|r Step " .. currentStepIndex .. " complete! Next: " .. nextDesc)
+
+    -- Notify UI callback if set
+    if Tracker.onStepAdvanced then
+        Tracker.onStepAdvanced(db.currentStep)
+    end
+end
+
+--------------------------------------------------------------------------------
+-- IncrementDungeonRun: Record a completed dungeon run
+--------------------------------------------------------------------------------
+function Tracker.IncrementDungeonRun(dungeonKey)
+    local db = BoneyardTBC_DO.module and BoneyardTBC_DO.module.db
+    if not db then return end
+
+    if not db.dungeonRunCounts then
+        db.dungeonRunCounts = {}
+    end
+
+    if not db.dungeonRunCounts[dungeonKey] then
+        db.dungeonRunCounts[dungeonKey] = 0
+    end
+
+    db.dungeonRunCounts[dungeonKey] = db.dungeonRunCounts[dungeonKey] + 1
+
+    local dungeon = BoneyardTBC_DO.DUNGEONS[dungeonKey]
+    local dungeonName = (dungeon and dungeon.name) or dungeonKey
+    local count = db.dungeonRunCounts[dungeonKey]
+
+    print("|cff00ccffBoneyard:|r " .. dungeonName .. " run " .. count .. " complete")
+
+    -- Check if this run triggers step advancement
+    Tracker.CheckStepAdvancement()
+end
+
+--------------------------------------------------------------------------------
+-- SkipStep: Manual skip for travel/checkpoint steps only
+--------------------------------------------------------------------------------
+function Tracker.SkipStep()
+    local step = Tracker.GetCurrentStep()
+    if not step then
+        print("|cff00ccffBoneyard:|r No current step to skip.")
+        return
+    end
+
+    if step.type == "travel" or step.type == "checkpoint" then
+        Tracker.AdvanceStep()
+    else
+        print("|cff00ccffBoneyard:|r Can only skip travel or checkpoint steps.")
+    end
+end
+
+--------------------------------------------------------------------------------
+-- ResetProgress: Reset all tracking state
+--------------------------------------------------------------------------------
+function Tracker.ResetProgress()
+    local db = BoneyardTBC_DO.module and BoneyardTBC_DO.module.db
+    if not db then return end
+
+    db.currentStep = 1
+    db.completedSteps = {}
+    db.dungeonRunCounts = {}
+
+    print("|cff00ccffBoneyard:|r Progress reset. Starting from step 1.")
+
+    -- Notify UI callback
+    if Tracker.onStepAdvanced then
+        Tracker.onStepAdvanced(1)
+    end
+end
