@@ -290,10 +290,23 @@ minimapInitFrame:SetScript("OnEvent", function(self, event, addonName)
     end
 end)
 
--- Left-click: toggle main window
+-- Left-click: toggle main window, Right-click: toggle overlay
+minimapBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 minimapBtn:SetScript("OnClick", function(self, button)
     if button == "LeftButton" then
         BoneyardTBC.MainFrame:Toggle()
+    elseif button == "RightButton" then
+        local Overlay = BoneyardTBC_DO and BoneyardTBC_DO.Overlay
+        if Overlay and Overlay.frame then
+            local db = BoneyardTBC_DO.module and BoneyardTBC_DO.module.db
+            if Overlay.frame:IsShown() then
+                Overlay.frame:Hide()
+                if db then db.showOverlay = false end
+            else
+                Overlay.frame:Show()
+                if db then db.showOverlay = true end
+            end
+        end
     end
 end)
 
@@ -302,6 +315,7 @@ minimapBtn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:AddLine("Boneyard TBC Special")
     GameTooltip:AddLine("Left-click to toggle window", 0.7, 0.7, 0.7)
+    GameTooltip:AddLine("Right-click to toggle overlay", 0.7, 0.7, 0.7)
     GameTooltip:AddLine("Drag to reposition", 0.7, 0.7, 0.7)
     GameTooltip:Show()
 end)
