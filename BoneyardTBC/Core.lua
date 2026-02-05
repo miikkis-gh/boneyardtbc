@@ -84,6 +84,15 @@ eventFrame:SetScript("OnEvent", function(self, event, addonName)
 
         self:UnregisterEvent("ADDON_LOADED")
 
+        -- Register with Mechanic (safe if Mechanic isn't installed)
+        if MechanicLib then
+            MechanicLib:RegisterAddon("BoneyardTBC", {
+                tests = true,
+                console = true,
+                perf = true,
+            })
+        end
+
         print("|cff00ccffBoneyard TBC Special|r loaded. Type |cff00ff00/btbc|r for options.")
     end
 end)
