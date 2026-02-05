@@ -87,8 +87,9 @@ end
 --------------------------------------------------------------------------------
 function Sync.DeserializeStatus(payload)
     -- payload format: lvl,step,dungeon,runsDone,runsTotal,mode,HH:CE:CO:KT:LC:SH
+    -- Split on commas, preserving empty fields (e.g. "1,1,,0" -> {"1","1","","0"})
     local parts = {}
-    for part in payload:gmatch("[^,]+") do
+    for part in (payload .. ","):gmatch("(.-),") do
         parts[#parts + 1] = part
     end
 
@@ -109,7 +110,7 @@ function Sync.DeserializeStatus(payload)
     -- Parse rep values (colon-separated in the 7th field)
     local repStr = parts[7] or ""
     local repValues = {}
-    for val in repStr:gmatch("[^:]+") do
+    for val in (repStr .. ":"):gmatch("(.-):") do
         repValues[#repValues + 1] = tonumber(val) or 0
     end
     for i, key in ipairs(REP_KEYS) do
