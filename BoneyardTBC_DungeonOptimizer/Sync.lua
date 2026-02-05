@@ -153,8 +153,10 @@ function Sync.OnAddonMessage(prefix, message, channel, sender)
     if prefix ~= ADDON_PREFIX then return end
 
     -- Don't process our own messages
+    -- Sender may arrive as "Name-Server" in TBC Classic; UnitName returns just "Name"
     local playerName = UnitName("player")
-    if sender == playerName then return end
+    local senderName = sender:match("^([^%-]+)") or sender
+    if senderName == playerName then return end
 
     local db = BoneyardTBC_DO.module and BoneyardTBC_DO.module.db
     if not db then return end
@@ -177,10 +179,10 @@ function Sync.OnAddonMessage(prefix, message, channel, sender)
         if not data then return end
 
         if channel == "GUILD" then
-            Sync.guildRoster[sender] = data
-            Sync.CheckDungeonMatchAlert(sender, data)
+            Sync.guildRoster[senderName] = data
+            Sync.CheckDungeonMatchAlert(senderName, data)
         elseif channel == "PARTY" then
-            Sync.partyRoster[sender] = data
+            Sync.partyRoster[senderName] = data
         end
 
         -- Refresh guild tab if visible
