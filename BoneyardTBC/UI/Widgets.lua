@@ -204,45 +204,53 @@ function Widgets.CreateDropdown(parent, items, default, onSelect)
     menu:Hide()
     btn.menu = menu
 
-    -- Build menu items
-    local function BuildMenuItems()
-        -- Clear existing children (if rebuilding)
-        if menu.buttons then
-            for _, b in ipairs(menu.buttons) do
-                b:Hide()
-                b:SetParent(nil)
-            end
-        end
-        menu.buttons = {}
+    -- Build menu items (reuses existing button frames to avoid frame leaks)
+    menu.buttons = {}
 
+    local function BuildMenuItems()
         local itemCount = #btn.items
         local menuHeight = (itemCount * ITEM_HEIGHT) + 4 -- 2px padding top/bottom
         menu:SetSize(BUTTON_WIDTH, menuHeight)
         menu:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 0, -1)
 
-        for i, itemLabel in ipairs(btn.items) do
-            local itemBtn = CreateFrame("Button", nil, menu, "BackdropTemplate")
-            itemBtn:SetSize(BUTTON_WIDTH - 2, ITEM_HEIGHT)
-            itemBtn:SetPoint("TOPLEFT", menu, "TOPLEFT", 1, -((i - 1) * ITEM_HEIGHT) - 2)
-            itemBtn:SetBackdrop(BACKDROP_DROPDOWN_ITEM)
-            itemBtn:SetBackdropColor(0, 0, 0, 0)
+        -- Hide any excess buttons from previous builds
+        for i = itemCount + 1, #menu.buttons do
+            menu.buttons[i]:Hide()
+        end
 
-            local itemText = itemBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            itemText:SetPoint("LEFT", itemBtn, "LEFT", 8, 0)
-            itemText:SetPoint("RIGHT", itemBtn, "RIGHT", -8, 0)
-            itemText:SetJustifyH("LEFT")
-            itemText:SetText(itemLabel)
+        for i, itemLabel in ipairs(btn.items) do
+            local itemBtn = menu.buttons[i]
+
+            if not itemBtn then
+                -- Create a new button only if we don't have one to reuse
+                itemBtn = CreateFrame("Button", nil, menu, "BackdropTemplate")
+                itemBtn:SetSize(BUTTON_WIDTH - 2, ITEM_HEIGHT)
+                itemBtn:SetBackdrop(BACKDROP_DROPDOWN_ITEM)
+
+                local itemText = itemBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                itemText:SetPoint("LEFT", itemBtn, "LEFT", 8, 0)
+                itemText:SetPoint("RIGHT", itemBtn, "RIGHT", -8, 0)
+                itemText:SetJustifyH("LEFT")
+                itemBtn.itemText = itemText
+
+                itemBtn:SetHighlightTexture("Interface\\Buttons\\WHITE8x8")
+                local itemHl = itemBtn:GetHighlightTexture()
+                itemHl:SetVertexColor(1, 1, 1, 0.12)
+
+                menu.buttons[i] = itemBtn
+            end
+
+            -- Update position, text, colors, and callback on every rebuild
+            itemBtn:SetPoint("TOPLEFT", menu, "TOPLEFT", 1, -((i - 1) * ITEM_HEIGHT) - 2)
+            itemBtn:SetBackdropColor(0, 0, 0, 0)
+            itemBtn.itemText:SetText(itemLabel)
 
             -- Highlight the currently selected item
             if itemLabel == btn.selectedValue then
-                itemText:SetTextColor(0.3, 0.8, 1, 1)
+                itemBtn.itemText:SetTextColor(0.3, 0.8, 1, 1)
             else
-                itemText:SetTextColor(0.9, 0.9, 0.9, 1)
+                itemBtn.itemText:SetTextColor(0.9, 0.9, 0.9, 1)
             end
-
-            itemBtn:SetHighlightTexture("Interface\\Buttons\\WHITE8x8")
-            local itemHl = itemBtn:GetHighlightTexture()
-            itemHl:SetVertexColor(1, 1, 1, 0.12)
 
             itemBtn:SetScript("OnClick", function()
                 btn.selectedValue = itemLabel
@@ -254,7 +262,7 @@ function Widgets.CreateDropdown(parent, items, default, onSelect)
                 end
             end)
 
-            menu.buttons[i] = itemBtn
+            itemBtn:Show()
         end
     end
 

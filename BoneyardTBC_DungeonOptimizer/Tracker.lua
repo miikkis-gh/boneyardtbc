@@ -143,7 +143,8 @@ function Tracker.OnEvent(event, ...)
 
     elseif event == "QUEST_ACCEPTED" then
         -- Cache quest name for later lookup on QUEST_TURNED_IN
-        local questID = ...
+        -- TBC Classic fires QUEST_ACCEPTED with (questLogIndex, questID)
+        local questLogIndex, questID = ...
         if questID then
             local questTitle = C_QuestLog and C_QuestLog.GetQuestInfo and C_QuestLog.GetQuestInfo(questID)
             if not questTitle then
@@ -374,19 +375,28 @@ function Tracker.AdvanceStep()
     end
     db.completedSteps[currentStepIndex] = true
 
-    -- Increment to next step
-    db.currentStep = currentStepIndex + 1
-
-    -- Find next step description for the chat message
+    -- Find the next step in the filtered route after the current one
     local nextStep = nil
-    local lastResult = BoneyardTBC_DO.Optimizer and BoneyardTBC_DO.Optimizer.lastResult
-    if lastResult and lastResult.route then
-        for _, step in ipairs(lastResult.route) do
-            if step.step == db.currentStep then
-                nextStep = step
+    local route = BoneyardTBC_DO.Optimizer and BoneyardTBC_DO.Optimizer.lastResult and BoneyardTBC_DO.Optimizer.lastResult.route
+    if route then
+        local foundCurrent = false
+        for _, routeStep in ipairs(route) do
+            if foundCurrent then
+                db.currentStep = routeStep.step
+                nextStep = routeStep
                 break
             end
+            if routeStep.step == currentStepIndex then
+                foundCurrent = true
+            end
         end
+        -- If we didn't find a next step (last step in route), just increment
+        if not foundCurrent or db.currentStep == currentStepIndex then
+            db.currentStep = currentStepIndex + 1
+        end
+    else
+        -- No route available, fall back to simple increment
+        db.currentStep = currentStepIndex + 1
     end
 
     local nextDesc = "End of route"
