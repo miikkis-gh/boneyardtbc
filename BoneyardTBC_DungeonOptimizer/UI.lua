@@ -201,7 +201,7 @@ function DO:CreateSetupTab(parent)
 
     local balancedBtn = BoneyardTBC.Widgets.CreateTabButton(leftCol, "Balanced", function()
         db.optimizationMode = "balanced"
-        balancedBtn:SetSelected(true)
+        W.balancedBtn:SetSelected(true)
         W.levelingBtn:SetSelected(false)
         BoneyardTBC_DO.Optimizer.Recalculate()
         DO:RefreshSummary()
@@ -213,7 +213,7 @@ function DO:CreateSetupTab(parent)
     local levelingBtn = BoneyardTBC.Widgets.CreateTabButton(leftCol, "Leveling", function()
         db.optimizationMode = "leveling"
         W.balancedBtn:SetSelected(false)
-        levelingBtn:SetSelected(true)
+        W.levelingBtn:SetSelected(true)
         BoneyardTBC_DO.Optimizer.Recalculate()
         DO:RefreshSummary()
     end)

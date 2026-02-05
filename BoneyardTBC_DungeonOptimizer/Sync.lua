@@ -201,6 +201,8 @@ function Sync.OnAddonMessage(prefix, message, channel, sender)
 
     elseif msgType == MSG_PONG then
         -- Addon user confirmed in party; their STATUS will follow
+        -- (no action needed, STATUS message follows automatically)
+        return
     end
 end
 

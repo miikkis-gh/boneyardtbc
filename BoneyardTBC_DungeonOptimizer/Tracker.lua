@@ -94,7 +94,7 @@ end
 -- totalRep = standingBase + (barValue - barMin)
 --------------------------------------------------------------------------------
 function Tracker.GetTotalRep(factionID)
-    local name, _, standingId, barMin, barMax, barValue = GetFactionInfoByID(factionID)
+    local name, _, standingId, barMin, _, barValue = GetFactionInfoByID(factionID)
     if not name then
         return 0
     end
@@ -148,7 +148,7 @@ function Tracker.OnEvent(event, ...)
     elseif event == "QUEST_ACCEPTED" then
         -- Cache quest name for later lookup on QUEST_TURNED_IN
         -- TBC Classic fires QUEST_ACCEPTED with (questLogIndex, questID)
-        local questLogIndex, questID = ...
+        local _, questID = ...
         if questID then
             local questTitle = C_QuestLog and C_QuestLog.GetQuestInfo and C_QuestLog.GetQuestInfo(questID)
             if not questTitle then
@@ -293,7 +293,7 @@ end
 -- CheckStepAdvancement: Check if current step's conditions are met
 --------------------------------------------------------------------------------
 function Tracker.CheckStepAdvancement()
-    local step, stepIndex = Tracker.GetCurrentStep()
+    local step = Tracker.GetCurrentStep()
     if not step then return end
     if not Tracker.playerState then return end
 
