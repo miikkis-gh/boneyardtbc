@@ -360,6 +360,12 @@ function BoneyardTBC_DO.Optimizer.Recalculate()
         currentReps = {}
     end
 
+    -- Clamp to minimum level 58 (addon is designed for the 58-70 dungeon grind)
+    if startLevel < 58 then
+        startLevel = 58
+        startXP = 0
+    end
+
     -- Ensure all factions have a rep entry
     for factionKey, _ in pairs(BoneyardTBC_DO.FACTIONS) do
         if not currentReps[factionKey] then

@@ -5,6 +5,7 @@
 
 BoneyardTBC = {}
 BoneyardTBC.modules = {}
+BoneyardTBC.initialized = false
 
 -- Module alias map: slash command shorthand -> registered module name
 BoneyardTBC.moduleAliases = {
@@ -21,6 +22,17 @@ function BoneyardTBC:RegisterModule(name, module)
         return
     end
     self.modules[name] = module
+
+    -- If core already initialized (module loaded after ADDON_LOADED),
+    -- immediately initialize this module with its DB namespace.
+    if self.initialized and BoneyardTBCDB then
+        if not BoneyardTBCDB[name] then
+            BoneyardTBCDB[name] = {}
+        end
+        if module.OnInitialize then
+            module:OnInitialize(BoneyardTBCDB[name])
+        end
+    end
 end
 
 function BoneyardTBC:GetModule(name)
@@ -82,6 +94,7 @@ eventFrame:SetScript("OnEvent", function(self, event, addonName)
             end
         end
 
+        BoneyardTBC.initialized = true
         self:UnregisterEvent("ADDON_LOADED")
 
         -- Register with Mechanic (safe if Mechanic isn't installed)

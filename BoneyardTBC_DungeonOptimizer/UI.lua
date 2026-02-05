@@ -197,7 +197,7 @@ function DO:CreateSetupTab(parent)
     -- 2. OPTIMIZATION MODE
     ----------------------------------------------------------------
 
-    local modeHeader = CreateSectionHeader(leftCol, "Mode", 0, -100)
+    local modeHeader = CreateSectionHeader(leftCol, "Mode", 0, -76)
 
     local balancedBtn = BoneyardTBC.Widgets.CreateTabButton(leftCol, "Balanced", function()
         db.optimizationMode = "balanced"
@@ -234,7 +234,7 @@ function DO:CreateSetupTab(parent)
     -- 3. OPTIONAL QUEST CHAINS
     ----------------------------------------------------------------
 
-    local questHeader = CreateSectionHeader(leftCol, "Optional Quests", 0, -162)
+    local questHeader = CreateSectionHeader(leftCol, "Optional Quests", 0, -130)
 
     -- Karazhan checkbox
     local karazhanCB = BoneyardTBC.Widgets.CreateCheckbox(leftCol, "Karazhan Attunement (+63,100 XP)", db.includeKarazhan, function(checked)
@@ -283,7 +283,7 @@ function DO:CreateSetupTab(parent)
     -- 4. REPUTATION GOALS
     ----------------------------------------------------------------
 
-    local repHeader = CreateSectionHeader(leftCol, "Reputation Goals", 0, -280)
+    local repHeader = CreateSectionHeader(leftCol, "Reputation Goals", 0, -224)
 
     -- Column headers
     local colFaction = CreateLabel(leftCol, "Faction", "GameFontNormalSmall")
@@ -336,7 +336,7 @@ function DO:CreateSetupTab(parent)
                 DO:RefreshSummary()
                 DO:RefreshRepNeeded()
             end)
-            cb:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -4)
+            cb:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -2)
             cb.label:SetWidth(110)
             row.checkbox = cb
 
