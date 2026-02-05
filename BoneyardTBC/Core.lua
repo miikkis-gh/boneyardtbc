@@ -47,7 +47,7 @@ local DEFAULTS = {
     core = {
         minimapButtonAngle = 220,
         windowPosition = { point = "CENTER", x = 0, y = 0 },
-        windowSize = { width = 700, height = 500 },
+        windowSize = { width = 700, height = 580 },
     },
 }
 
