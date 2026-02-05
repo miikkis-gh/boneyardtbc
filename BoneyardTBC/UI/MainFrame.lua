@@ -12,7 +12,7 @@ local MainFrame = BoneyardTBC.MainFrame
 ----------------------------------------------------------------------
 
 local FRAME_WIDTH = 700
-local FRAME_HEIGHT = 580
+local FRAME_HEIGHT = 640
 local TITLE_HEIGHT = 30
 local TAB_BAR_HEIGHT = 32
 local TAB_BAR_Y_OFFSET = -(TITLE_HEIGHT + 4)
