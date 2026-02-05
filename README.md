@@ -2,9 +2,7 @@
 
 A World of Warcraft addon for **TBC Classic Anniversary Edition** (2.5.x) that plans and tracks an optimal dungeon-grinding route from level 58 to 70, maximizing both XP and faction reputation to unlock heroic dungeon keys and complete the Karazhan attunement.
 
-Inspired by [tbc.rtw.dev/dungeon-optimizer](https://tbc.rtw.dev/dungeon-optimizer) and Myro's leveling spreadsheet (based on BiosparksTV's guide).
-
-![Setup Tab](https://github.com/user-attachments/assets/placeholder-setup.png)
+Inspired by Myro's leveling spreadsheet and BiosparksTV's guide.
 
 ## Features
 
