@@ -1,52 +1,62 @@
 # Boneyard TBC Special
 
-World of Warcraft -lisäosa **TBC Classic Anniversary Editionille** (2.5.x), joka suunnittelee ja seuraa optimaalisen dungeon-reitin tasolta 58 tasolle 70. Maksimoi sekä kokemuspisteet että fraktioiden maineen heroic-avainten avaamiseksi ja Karazhan-attunement-questien suorittamiseksi.
+WoW-addon TBC Classic Anniversary Editionille, joka laskee optimaalisen dungeon-reitin tasolta 58 tasolle 70. Tavoitteena maksimoida XP ja reputaatio niin, että heroic-avaimet ja Karazhan-attunement hoituvat samalla.
 
-Inspiroitu Myron leveling-taulukosta ja BiosparksTV:n oppaasta.
+Pohjautuu [Myronin leveling-taulukkoon](https://tinyurl.com/myrontbc) ja [BiosparksTV:n oppaisiin](https://www.youtube.com/@BiosparksTV).
 
-## Ominaisuudet
+## Mitä tämä tekee
 
-### Reitin optimointi
-- **Balanced-tila** — seuraa Myron optimoitua reittiä ja säätää dungeon-kierrosmääriä dynaamisesti tason ja maineen mukaan
-- **Leveling-tila** — ahne XP/tunti-maksimoija, joka valitsee parhaan dungeonin tasollesi huomioimatta maine-tavoitteita
-- Tunnistaa automaattisesti faktion, rodun, tason ja maineen — nollakonfiguraatio
-- Human-rodun 10% maine-bonus lasketaan automaattisesti
-- Valinnaiset questiketjut: Karazhan attunement, Arcatraz-avain, Shattered Halls -avain
+### Reitin laskenta
 
-### Reaaliaikainen seuranta
-- **Automaattinen eteneminen** — tunnistaa dungeon-suoritukset, quest-palautukset, aluevaihdot, tasojen nousut ja maineen kasvun
-- **XP-palkki** nykyisellä/maksimi-edistymisellä
-- **Maine-palkit** fraktioittain värikoodatuilla tasoilla ja edistymisellä kohti tavoitetta
-- **Dungeon-laskuri** — "Kierros X / Y" nykyiselle vaiheelle
-- **Attunement-tarkistuslista** — heroic-avaimet ja Karazhan-virstanpylväät
+- **Balanced-moodi** — seuraa Myronin reittiä ja säätää runien määrää lennosta tason ja repin mukaan
+- **Leveling-moodi** — puhdas XP/h-grinderi, valitsee aina parhaan dungeonin tasolle välittämättä repistä
+- Tunnistaa automaattisesti faktion, racen, levelin ja repin — ei tarvitse konfiguroida mitään
+- Humanin 10% rep-bonus huomioidaan automaattisesti
+- Valinnaiset questketjut: Karazhan attunement, Arcatraz-avain, Shattered Halls -avain
 
-### Kelluva overlay
-- Kompakti raahattava paneeli:
-  - **Instance-lukitus** — X/5 ajastimella, värikoodatut varoitukset
-  - **Session-kierrokset** — dungeonit tällä sessiolla
-  - **XP/h** ja **Maine/h** — laskettu session-datasta
-  - **Keskim. kierrosaika** — keskimääräinen dungeonin kesto
-- Vaihda näkyvyyttä minikartan painikkeen oikealla klikillä tai asetuksista
+### Trackeri
 
-### Älykkäät hälytykset
-Chat-viestit ääniefekteillä tärkeissä tapahtumissa:
+- **Automaattinen eteneminen** — tunnistaa dungeon-clearin, quest-turninit, zone-vaihdot, dingit ja rep-gainin
+- XP-palkki current/max-edistymisellä
+- Rep-palkit fraktiottain värikoodatuilla rep-tasoilla ja edistymisellä kohti goaleja
+- Dungeon-counter: "Run X / Y" nykyiselle phaselle
+- Attunement-checklist — heroic-keyt ja Kara-milestonet
 
-| Tapahtuma | Ääni |
-|-----------|------|
-| Dungeon-kierros valmis | Ilmoitusääni |
-| Reitin vaihe edennyt | Quest complete -fanfaari |
-| Maine-virstanpylväs (uusi taso) | Reputation up |
-| Instance-lukitusvaroitus (4/5) | Raid warning |
-| Instance-lukitus täynnä (5/5) | Raid warning |
-| Kiltaläinen samassa dungeonissa | Ilmoitusääni |
+### Overlay
 
-### Killan synkronointi
-- Jakaa edistymisen kiltaläisten ja ryhmän jäsenten kanssa näkymättömillä addon-viesteillä
-- **Guild-välilehti** kolmella osiolla:
-  - **LFG-osumat** — kiltaläiset samassa dungeonissa kuin sinä
-  - **Tulostaulukko** — killan jäsenet järjestettynä edistymisen mukaan
-  - **Suunnittelunäkymä** — kuka tarvitsee mitäkin dungeonia, ryhmitelty koordinointia varten
-- 5 minuutin heartbeat, vanhenemistunnistus, automaattinen rosteri-siivous
+Kompakti raahattava paneeli:
+
+- **Instance lock** — X/5 timerilla, värikoodattu warning kun lähestyy lockoutia
+- **Session runs** — montako dungeonia tällä sessiolla
+- **XP/h ja Rep/h** — laskettu session-datasta
+- **Avg run time** — keskimääräinen clearin kesto
+
+Toggletaan minimap-buttonin right-clickillä tai asetuksista.
+
+### Hälytykset
+
+Chat-messaget + äänet tärkeillä eventeillä:
+
+| Eventti | Ääni |
+|---------|------|
+| Dungeon-run valmis | Notification |
+| Reitin phase etenee | Quest complete -fanfaari |
+| Rep-milestone (uusi taso) | Reputation up |
+| Instance lock warning (4/5) | Raid warning |
+| Instance lock täynnä (5/5) | Raid warning |
+| Guildie samassa dungeonissa | Notification |
+
+### Guild sync
+
+Jakaa progressin guildien ja party-membereiden kanssa invisible addon-messageilla.
+
+Guild-tab kolmella osiolla:
+
+- **LFG-matchit** — guildiet samassa dungeonissa kuin sinä
+- **Leaderboard** — guildin jäsenet rankattuna progressin mukaan
+- **Planning** — kuka tarvitsee mitäkin dungeonia, ryhmitelty koordinointia varten
+
+5 min heartbeat, stale-detection, automaattinen roster-cleanup.
 
 ## Asennus
 
@@ -56,38 +66,41 @@ Chat-viestit ääniefekteillä tärkeissä tapahtumissa:
    World of Warcraft/_anniversary_/Interface/AddOns/BoneyardTBC/
    World of Warcraft/_anniversary_/Interface/AddOns/BoneyardTBC_DungeonOptimizer/
    ```
-3. Käynnistä WoW uudelleen tai `/reload`
+3. `/reload` tai restarttaa WoW
 
 ## Käyttö
 
-- **`/btbc`** — avaa/sulje pääikkuna
-- **`/btbc do route`** — tulosta nykyinen vaihe chattiin
-- **`/btbc do status`** — tulosta maine-yhteenveto chattiin
-- **`/btbc do reset`** — nollaa kaikki edistyminen
-- **Minikartan painike** — vasen klikkaus avaa ikkunan, oikea klikkaus vaihtaa overlayn näkyvyyttä
+| Komento | Toiminto |
+|---------|----------|
+| `/btbc` | Avaa/sulje pääikkuna |
+| `/btbc do route` | Printtaa nykyinen phase chattiin |
+| `/btbc do status` | Printtaa rep-yhteenveto chattiin |
+| `/btbc do reset` | Resettaa kaiken progressin |
 
-## Projektin rakenne
+Minimap-button: left-click avaa ikkunan, right-click togglee overlayn.
+
+## Rakenne
 
 ```
-BoneyardTBC/                          # Ydin-addon (moduulijärjestelmä, UI-kehys)
-  Core.lua                            # Moduulirekisteri, tallennetut muuttujat, slash-komennot
+BoneyardTBC/                          # Core-addon (moduulijärjestelmä, UI-framework)
+  Core.lua                            # Moduulirekisteri, saved variables, slash-komennot
   UI/Widgets.lua                      # Uudelleenkäytettävät UI-komponentit
-  UI/MainFrame.lua                    # Pääikkuna, välilehdet, minikartan painike
+  UI/MainFrame.lua                    # Pääikkuna, tabit, minimap-button
 
 BoneyardTBC_DungeonOptimizer/         # Dungeon Optimizer -moduuli
-  Data.lua                            # Staattinen data (dungeonit, fraktiot, reitit, XP-taulukot)
-  DungeonOptimizer.lua                # Moduulin käynnistys, oletusarvot, elinkaari
-  Optimizer.lua                       # Reitinlaskentamoottori (balanced + leveling)
-  Tracker.lua                         # Tapahtumapohjainen automaattinen eteneminen
-  Sync.lua                            # Kilta/ryhmä-viestiprotokolla
-  Overlay.lua                         # Kelluva tilastopaneeli + hälytysjärjestelmä
-  UI.lua                              # Kaikki välilehti-UI:t (Setup, Route, Tracker, Guild)
+  Data.lua                            # Staattinen data (dungeonit, fraktiot, reitit, XP-taulut)
+  DungeonOptimizer.lua                # Moduulin init, defaultit, lifecycle
+  Optimizer.lua                       # Reitinlaskenta (balanced + leveling)
+  Tracker.lua                         # Event-pohjainen automaattinen eteneminen
+  Sync.lua                            # Guild/party-viestiprotokolla
+  Overlay.lua                         # Kelluva statspaneeli + hälytysjärjestelmä
+  UI.lua                              # Tab-UI:t (Setup, Route, Tracker, Guild)
 ```
 
 ## Tuetut fraktiot
 
-| Fraktio | Dungeonit | Heroic-avain tasolla |
-|---------|-----------|---------------------|
+| Fraktio | Dungeonit | Heroic-key repillä |
+|---------|-----------|-------------------|
 | Honor Hold | Ramparts, Blood Furnace, Shattered Halls | Revered |
 | Cenarion Expedition | Slave Pens, Underbog, Steamvault | Revered |
 | The Consortium | Mana-Tombs | Honored |
@@ -98,7 +111,7 @@ BoneyardTBC_DungeonOptimizer/         # Dungeon Optimizer -moduuli
 ## Vaatimukset
 
 - WoW TBC Classic Anniversary Edition (Interface 20505)
-- Alliance-hahmo (Horde-reittiä ei ole vielä toteutettu)
+- Alliance-hahmot (Horde-reittiä ei vielä ole)
 
 ## Lisenssi
 
