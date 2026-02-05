@@ -2,8 +2,6 @@
 
 WoW-addon TBC Classic Anniversary Editionille, joka laskee optimaalisen dungeon-reitin tasolta 58 tasolle 70. Tavoitteena maksimoida XP ja reputaatio niin, että heroic-avaimet ja Karazhan-attunement hoituvat samalla.
 
-Pohjautuu [Myronin leveling-taulukkoon](https://tinyurl.com/myrontbc) ja [BiosparksTV:n oppaisiin](https://www.youtube.com/@BiosparksTV).
-
 ## Mitä tämä tekee
 
 ### Reitin laskenta
@@ -111,7 +109,7 @@ BoneyardTBC_DungeonOptimizer/         # Dungeon Optimizer -moduuli
 ## Vaatimukset
 
 - WoW TBC Classic Anniversary Edition (Interface 20505)
-- Alliance-hahmot (Horde-reittiä ei vielä ole)
+- Alliance-hahmot (Horde-reittiä ei ole, eikä tule)
 
 ## Lisenssi
 
