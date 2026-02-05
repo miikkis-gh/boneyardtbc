@@ -55,8 +55,14 @@ function Overlay.CreateOverlayFrame()
     local db = BoneyardTBC_DO.module and BoneyardTBC_DO.module.db
     if not db then return end
 
+    local PADDING = 8
+    local LINE_HEIGHT = 13
+    local LINE_GAP = 3
+    local FRAME_W = 160
+    local LABEL_COLOR = { 0.6, 0.6, 0.6 }
+    local VALUE_COLOR = { 1, 1, 1 }
+
     local f = CreateFrame("Frame", "BoneyardTBC_DOOverlay", UIParent, "BackdropTemplate")
-    f:SetSize(180, 100)
     f:SetFrameStrata("MEDIUM")
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -69,8 +75,8 @@ function Overlay.CreateOverlayFrame()
         edgeSize = 1,
         insets   = { left = 1, right = 1, top = 1, bottom = 1 },
     })
-    f:SetBackdropColor(0.05, 0.05, 0.05, 0.85)
-    f:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.9)
+    f:SetBackdropColor(0.06, 0.06, 0.08, 0.88)
+    f:SetBackdropBorderColor(0.25, 0.25, 0.3, 0.9)
 
     -- Restore position
     local pos = db.overlayPosition
@@ -90,46 +96,72 @@ function Overlay.CreateOverlayFrame()
         end
     end)
 
+    -- Helper: create a label + value pair on the same row
+    local function CreateRow(anchorTo, offsetY, labelText)
+        local label = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        label:SetPoint("TOPLEFT", anchorTo, "TOPLEFT", 0, offsetY)
+        label:SetText(labelText)
+        label:SetTextColor(LABEL_COLOR[1], LABEL_COLOR[2], LABEL_COLOR[3], 1)
+
+        local value = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        value:SetPoint("TOPRIGHT", anchorTo, "TOPRIGHT", 0, offsetY)
+        value:SetJustifyH("RIGHT")
+        value:SetTextColor(VALUE_COLOR[1], VALUE_COLOR[2], VALUE_COLOR[3], 1)
+
+        return label, value
+    end
+
+    -- Content anchor (inset from frame edges)
+    local content = CreateFrame("Frame", nil, f)
+    content:SetPoint("TOPLEFT", f, "TOPLEFT", PADDING, -PADDING)
+    content:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PADDING, -PADDING)
+    content:SetHeight(1)
+
     -- Title
     local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    title:SetPoint("TOPLEFT", f, "TOPLEFT", 6, -4)
-    title:SetText("Boneyard Stats")
-    title:SetTextColor(1, 0.82, 0, 1)
+    title:SetPoint("TOPLEFT", content)
+    title:SetText("Boneyard")
+    title:SetTextColor(0, 0.8, 1, 1)
 
-    -- Lockout line
-    local lockoutText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    lockoutText:SetPoint("TOPLEFT", f, "TOPLEFT", 6, -18)
-    lockoutText:SetText("Lockout:  0/5 | Ready")
-    lockoutText:SetTextColor(0.9, 0.9, 0.9, 1)
-    Overlay.lockoutText = lockoutText
+    -- Separator line
+    local sep = f:CreateTexture(nil, "ARTWORK")
+    sep:SetHeight(1)
+    sep:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(LINE_HEIGHT + 2))
+    sep:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -(LINE_HEIGHT + 2))
+    sep:SetColorTexture(0.3, 0.3, 0.35, 0.6)
 
-    -- Runs line
-    local runsText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    runsText:SetPoint("TOPLEFT", lockoutText, "BOTTOMLEFT", 0, -2)
-    runsText:SetText("Runs:     0 this session")
-    runsText:SetTextColor(0.9, 0.9, 0.9, 1)
-    Overlay.runsText = runsText
+    -- Row positions (below separator)
+    local rowTop = -(LINE_HEIGHT + 2 + 4) -- after title + sep + gap
+    local rowStep = -(LINE_HEIGHT + LINE_GAP)
 
-    -- XP/hr line
-    local xphrText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    xphrText:SetPoint("TOPLEFT", runsText, "BOTTOMLEFT", 0, -2)
-    xphrText:SetText("XP/hr:    \226\128\148")
-    xphrText:SetTextColor(0.9, 0.9, 0.9, 1)
-    Overlay.xphrText = xphrText
+    -- Lockout row
+    local _, lockoutVal = CreateRow(content, rowTop, "Lockout")
+    lockoutVal:SetText("0/5 | Ready")
+    Overlay.lockoutVal = lockoutVal
 
-    -- Rep/hr line
-    local rephrText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    rephrText:SetPoint("TOPLEFT", xphrText, "BOTTOMLEFT", 0, -2)
-    rephrText:SetText("Rep/hr:   \226\128\148")
-    rephrText:SetTextColor(0.9, 0.9, 0.9, 1)
-    Overlay.rephrText = rephrText
+    -- Runs row
+    local _, runsVal = CreateRow(content, rowTop + rowStep, "Runs")
+    runsVal:SetText("0")
+    Overlay.runsVal = runsVal
 
-    -- Avg run line
-    local avgRunText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    avgRunText:SetPoint("TOPLEFT", rephrText, "BOTTOMLEFT", 0, -2)
-    avgRunText:SetText("Avg Run:  \226\128\148")
-    avgRunText:SetTextColor(0.9, 0.9, 0.9, 1)
-    Overlay.avgRunText = avgRunText
+    -- XP/hr row
+    local _, xphrVal = CreateRow(content, rowTop + rowStep * 2, "XP/hr")
+    xphrVal:SetText("\226\128\148")
+    Overlay.xphrVal = xphrVal
+
+    -- Rep/hr row
+    local _, rephrVal = CreateRow(content, rowTop + rowStep * 3, "Rep/hr")
+    rephrVal:SetText("\226\128\148")
+    Overlay.rephrVal = rephrVal
+
+    -- Avg Run row
+    local _, avgRunVal = CreateRow(content, rowTop + rowStep * 4, "Avg Run")
+    avgRunVal:SetText("\226\128\148")
+    Overlay.avgRunVal = avgRunVal
+
+    -- Calculate frame height from content
+    local totalHeight = PADDING + LINE_HEIGHT + 2 + 4 + (LINE_HEIGHT + LINE_GAP) * 5 + PADDING
+    f:SetSize(FRAME_W, totalHeight)
 
     -- OnUpdate timer
     f:SetScript("OnUpdate", function(_, dt)
@@ -162,7 +194,7 @@ end
 -- UpdateLockout: Recalculate X/5 and countdown from Tracker.instanceEntries
 --------------------------------------------------------------------------------
 function Overlay.UpdateLockout()
-    if not Overlay.lockoutText then return end
+    if not Overlay.lockoutVal then return end
 
     local entries = BoneyardTBC_DO.Tracker and BoneyardTBC_DO.Tracker.instanceEntries or {}
     local now = time()
@@ -192,16 +224,15 @@ function Overlay.UpdateLockout()
         end
     end
 
-    local text = string.format("Lockout:  %d/%d | %s", count, LOCKOUT_MAX, timerStr)
-    Overlay.lockoutText:SetText(text)
+    Overlay.lockoutVal:SetText(string.format("%d/%d | %s", count, LOCKOUT_MAX, timerStr))
 
     -- Color based on count
     if count >= 5 then
-        Overlay.lockoutText:SetTextColor(1, 0.2, 0.2, 1)
+        Overlay.lockoutVal:SetTextColor(1, 0.2, 0.2, 1)
     elseif count >= 4 then
-        Overlay.lockoutText:SetTextColor(1, 0.6, 0.2, 1)
+        Overlay.lockoutVal:SetTextColor(1, 0.6, 0.2, 1)
     else
-        Overlay.lockoutText:SetTextColor(0.9, 0.9, 0.9, 1)
+        Overlay.lockoutVal:SetTextColor(1, 1, 1, 1)
     end
 end
 
@@ -223,10 +254,10 @@ end
 -- UpdateSessionStats: Compute XP/hr, rep/hr, avg run time
 --------------------------------------------------------------------------------
 function Overlay.UpdateSessionStats()
-    if not Overlay.runsText then return end
+    if not Overlay.runsVal then return end
 
     -- Runs
-    Overlay.runsText:SetText("Runs:     " .. Overlay.sessionRuns .. " this session")
+    Overlay.runsVal:SetText(tostring(Overlay.sessionRuns))
 
     -- Session duration
     local sessionDuration = 0
@@ -234,12 +265,13 @@ function Overlay.UpdateSessionStats()
         sessionDuration = GetTime() - Overlay.sessionStartTime
     end
 
+    local dash = "\226\128\148"
+
     -- XP/hr
-    if sessionDuration > 60 then -- need at least 1 minute of data
+    if sessionDuration > 60 then
         local playerState = BoneyardTBC_DO.Tracker and BoneyardTBC_DO.Tracker.playerState
         local currentTotalXP = 0
         if playerState then
-            -- Approximate total XP: sum XP_TO_LEVEL for levels gained + current XP
             local startLevel = Overlay.sessionLevelStart or (playerState.level or 1)
             for lvl = startLevel, (playerState.level or 1) - 1 do
                 currentTotalXP = currentTotalXP + (BoneyardTBC_DO.XP_TO_LEVEL[lvl] or 0)
@@ -249,22 +281,22 @@ function Overlay.UpdateSessionStats()
 
         local hours = sessionDuration / 3600
         if hours > 0 and currentTotalXP > 0 then
-            Overlay.xphrText:SetText("XP/hr:    " .. FormatNumber(math.floor(currentTotalXP / hours)))
+            Overlay.xphrVal:SetText(FormatNumber(math.floor(currentTotalXP / hours)))
         else
-            Overlay.xphrText:SetText("XP/hr:    \226\128\148")
+            Overlay.xphrVal:SetText(dash)
         end
 
-        -- Rep/hr (for current dungeon's faction)
+        -- Rep/hr
         local repGained = Overlay.GetSessionRepGained()
         if hours > 0 and repGained > 0 then
             local factionAbbrev = Overlay.GetCurrentFactionAbbrev()
-            Overlay.rephrText:SetText("Rep/hr:   " .. FormatNumber(math.floor(repGained / hours)) .. " (" .. factionAbbrev .. ")")
+            Overlay.rephrVal:SetText(FormatNumber(math.floor(repGained / hours)) .. " " .. factionAbbrev)
         else
-            Overlay.rephrText:SetText("Rep/hr:   \226\128\148")
+            Overlay.rephrVal:SetText(dash)
         end
     else
-        Overlay.xphrText:SetText("XP/hr:    \226\128\148")
-        Overlay.rephrText:SetText("Rep/hr:   \226\128\148")
+        Overlay.xphrVal:SetText(dash)
+        Overlay.rephrVal:SetText(dash)
     end
 
     -- Avg run time
@@ -276,9 +308,9 @@ function Overlay.UpdateSessionStats()
         local avg = total / #Overlay.sessionRunTimes
         local mins = math.floor(avg / 60)
         local secs = math.floor(avg % 60)
-        Overlay.avgRunText:SetText(string.format("Avg Run:  %dm %02ds", mins, secs))
+        Overlay.avgRunVal:SetText(string.format("%dm %02ds", mins, secs))
     else
-        Overlay.avgRunText:SetText("Avg Run:  \226\128\148")
+        Overlay.avgRunVal:SetText(dash)
     end
 end
 
