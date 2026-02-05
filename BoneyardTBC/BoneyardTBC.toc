@@ -1,0 +1,10 @@
+## Interface: 20505
+## Title: Boneyard TBC Special
+## Notes: Modular addon suite for TBC Classic
+## Author: miikkis
+## Version: 1.0.0
+## SavedVariables: BoneyardTBCDB
+
+Core.lua
+UI\Widgets.lua
+UI\MainFrame.lua
