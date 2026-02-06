@@ -54,6 +54,9 @@ function Tracker.Initialize()
     self.inInstance = false
     self.currentInstance = nil
     self.instanceEntries = {}
+    self.lastExitedInstance = nil
+    self.lastExitTime = 0
+    self.pendingRunDungeonKey = nil
 end
 
 --------------------------------------------------------------------------------
@@ -187,47 +190,77 @@ function Tracker.OnEvent(event, ...)
                 Tracker.inInstance = true
                 Tracker.currentInstance = GetInstanceInfo()
 
-                -- Track instance entry for lockout warning
-                table.insert(Tracker.instanceEntries, time())
-                -- Clean up entries older than 1 hour
-                local cutoff = time() - 3600
-                local i = 1
-                while i <= #Tracker.instanceEntries do
-                    if Tracker.instanceEntries[i] < cutoff then
-                        table.remove(Tracker.instanceEntries, i)
-                    else
-                        i = i + 1
+                -- Check if this is a re-entry to the same instance (e.g. graveyard run)
+                local isReentry = (Tracker.currentInstance == Tracker.lastExitedInstance)
+                    and (time() - Tracker.lastExitTime) < 300
+
+                if isReentry then
+                    -- Same instance re-entry: cancel the pending run completion
+                    Tracker.pendingRunDungeonKey = nil
+                else
+                    -- Genuinely new instance entry
+
+                    -- Commit any pending run from a previous instance
+                    if Tracker.pendingRunDungeonKey then
+                        Tracker.IncrementDungeonRun(Tracker.pendingRunDungeonKey)
+                        Tracker.pendingRunDungeonKey = nil
+                    end
+
+                    -- Track instance entry for lockout warning
+                    table.insert(Tracker.instanceEntries, time())
+                    -- Clean up entries older than 1 hour
+                    local cutoff = time() - 3600
+                    local i = 1
+                    while i <= #Tracker.instanceEntries do
+                        if Tracker.instanceEntries[i] < cutoff then
+                            table.remove(Tracker.instanceEntries, i)
+                        else
+                            i = i + 1
+                        end
+                    end
+                    -- Lockout warnings via Overlay
+                    local Overlay = BoneyardTBC_DO.Overlay
+                    if Overlay then
+                        if #Tracker.instanceEntries >= 5 then
+                            local oldest = Tracker.instanceEntries[1]
+                            local waitMins = math.ceil((3600 - (time() - oldest)) / 60)
+                            Overlay.FireAlert("LOCKOUT_HIT", "Lockout reached! Wait " .. waitMins .. "m.")
+                        elseif #Tracker.instanceEntries >= 4 then
+                            Overlay.FireAlert("LOCKOUT_WARNING", "4/5 instances. Slow down!")
+                        end
+                        Overlay.OnInstanceEnter()
                     end
                 end
-                -- Lockout warnings via Overlay
-                local Overlay = BoneyardTBC_DO.Overlay
-                if Overlay then
-                    if #Tracker.instanceEntries >= 5 then
-                        local oldest = Tracker.instanceEntries[1]
-                        local waitMins = math.ceil((3600 - (time() - oldest)) / 60)
-                        Overlay.FireAlert("LOCKOUT_HIT", "Lockout reached! Wait " .. waitMins .. "m.")
-                    elseif #Tracker.instanceEntries >= 4 then
-                        Overlay.FireAlert("LOCKOUT_WARNING", "4/5 instances. Slow down!")
-                    end
-                    Overlay.OnInstanceEnter()
-                end
+
+                Tracker.lastExitedInstance = nil
+                Tracker.lastExitTime = 0
             end
         else
             if Tracker.inInstance then
-                -- Just exited an instance -- count the completed run
+                -- Just exited an instance -- defer run count in case of graveyard re-entry
                 local exitedInstance = Tracker.currentInstance
                 Tracker.inInstance = false
                 Tracker.currentInstance = nil
+                Tracker.lastExitedInstance = exitedInstance
+                Tracker.lastExitTime = time()
 
                 -- Notify overlay of instance exit
                 if BoneyardTBC_DO.Overlay then
                     BoneyardTBC_DO.Overlay.OnInstanceExit()
                 end
 
+                -- Defer run increment — will be committed on next new instance entry or timeout
                 if exitedInstance then
                     local dungeonKey = Tracker.FindDungeonKeyByName(exitedInstance)
                     if dungeonKey then
-                        Tracker.IncrementDungeonRun(dungeonKey)
+                        Tracker.pendingRunDungeonKey = dungeonKey
+                        -- Commit after 5 minutes if no re-entry occurs
+                        C_Timer.After(300, function()
+                            if Tracker.pendingRunDungeonKey == dungeonKey then
+                                Tracker.IncrementDungeonRun(dungeonKey)
+                                Tracker.pendingRunDungeonKey = nil
+                            end
+                        end)
                     end
                 end
             end
