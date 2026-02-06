@@ -13,9 +13,9 @@ local Tracker = BoneyardTBC_DO.Tracker
 local STANDING_BASES = {
     [4] = 0,      -- Neutral
     [5] = 3000,   -- Friendly
-    [6] = 6000,   -- Honored
-    [7] = 12000,  -- Revered
-    [8] = 21000,  -- Exalted
+    [6] = 9000,   -- Honored
+    [7] = 21000,  -- Revered
+    [8] = 42000,  -- Exalted
 }
 
 -- Quest name cache: questID -> quest title (populated on QUEST_ACCEPTED)
@@ -160,6 +160,7 @@ function Tracker.OnEvent(event, ...)
             end
             if questTitle then
                 Tracker.questCache[questID] = questTitle
+                Tracker.CheckQuestStep(questTitle, "Accept")
             end
         end
 
@@ -176,7 +177,7 @@ function Tracker.OnEvent(event, ...)
             end
         end
         if questTitle then
-            Tracker.CheckQuestStep(questTitle)
+            Tracker.CheckQuestStep(questTitle, "Turn In")
         end
 
     elseif event == "ZONE_CHANGED_NEW_AREA" then
@@ -382,11 +383,16 @@ end
 
 --------------------------------------------------------------------------------
 -- CheckQuestStep: Check if current step is a quest step matching the given name
+-- eventAction: the action that just occurred ("Accept" or "Turn In")
+-- Only advances if the step's action matches the event action.
 --------------------------------------------------------------------------------
-function Tracker.CheckQuestStep(questName)
+function Tracker.CheckQuestStep(questName, eventAction)
     local step = Tracker.GetCurrentStep()
     if not step then return end
     if step.type ~= "quest" then return end
+
+    -- Only advance if the step action matches what just happened
+    if eventAction and step.action and step.action ~= eventAction then return end
 
     if step.quest and questName then
         if step.quest:lower() == questName:lower() then
@@ -478,6 +484,43 @@ function Tracker.AdvanceStep()
     if BoneyardTBC_DO.Sync and BoneyardTBC_DO.Sync.BroadcastAll then
         BoneyardTBC_DO.Sync.BroadcastAll()
     end
+end
+
+--------------------------------------------------------------------------------
+-- GetDungeonRunsDone: Derive completed runs from rep progress for a route step
+-- Returns: done, total (both dynamically computed from rep when possible)
+-- Falls back to db.dungeonRunCounts when rep derivation isn't possible.
+--------------------------------------------------------------------------------
+function Tracker.GetDungeonRunsDone(step)
+    local db = BoneyardTBC_DO.module and BoneyardTBC_DO.module.db
+    local dungeonKey = step.dungeon
+    local fallbackTotal = step.calculatedRuns or step.runs or 0
+
+    -- Derive from rep when startRep and repGoal are available
+    if step.startRep and step.repGoal and step.faction then
+        local dungeon = BoneyardTBC_DO.DUNGEONS[dungeonKey]
+        if dungeon and dungeon.repPerClear and dungeon.repPerClear > 0 then
+            local playerState = Tracker.playerState
+            local race = playerState and playerState.race or "Unknown"
+            local repPerRun = BoneyardTBC_DO.Optimizer.ApplyRacialBonus(dungeon.repPerClear, race)
+            local targetRep = BoneyardTBC_DO.REP_THRESHOLDS[step.repGoal] or 0
+            local currentRep = playerState and playerState.reps and playerState.reps[step.faction] or 0
+
+            -- Total runs needed from startRep to target
+            local neededFromStart = math.max(0, targetRep - step.startRep)
+            local total = math.max(1, math.ceil(neededFromStart / repPerRun))
+
+            -- Runs done since startRep
+            local gainedRep = math.max(0, currentRep - step.startRep)
+            local done = math.min(total, math.floor(gainedRep / repPerRun))
+
+            return done, total
+        end
+    end
+
+    -- Fallback: event-based counter
+    local done = (db and db.dungeonRunCounts and db.dungeonRunCounts[dungeonKey]) or 0
+    return done, fallbackTotal
 end
 
 --------------------------------------------------------------------------------

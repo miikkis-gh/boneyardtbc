@@ -15,6 +15,7 @@ local Sync = BoneyardTBC_DO.Sync
 -- Constants
 --------------------------------------------------------------------------------
 local ADDON_PREFIX = "BoneyardTBC"
+local PROTOCOL_VERSION = 1      -- bump when STATUS format changes
 local HEARTBEAT_INTERVAL = 300  -- 5 minutes in seconds
 local STALE_THRESHOLD = 86400   -- 24 hours in seconds (greyed out in UI)
 local PRUNE_THRESHOLD = 604800  -- 7 days in seconds (removed on login)
@@ -40,7 +41,7 @@ Sync.initialized = false    -- guard against double init
 
 --------------------------------------------------------------------------------
 -- SerializeStatus: Build a compact status string from current player state
--- Format: STATUS:lvl,step,dungeon,runsDone,runsTotal,mode,HH:CE:CO:KT:LC:SH
+-- Format: STATUS:ver,lvl,step,dungeon,runsDone,runsTotal,mode,HH:CE:CO:KT:LC:SH
 --------------------------------------------------------------------------------
 function Sync.SerializeStatus()
     local db = BoneyardTBC_DO.module and BoneyardTBC_DO.module.db
@@ -62,8 +63,7 @@ function Sync.SerializeStatus()
         for _, routeStep in ipairs(route) do
             if routeStep.step == step and routeStep.type == "dungeon" then
                 dungeon = routeStep.dungeon or ""
-                runsTotal = routeStep.calculatedRuns or routeStep.runs or 0
-                runsDone = (db.dungeonRunCounts and db.dungeonRunCounts[dungeon]) or 0
+                runsDone, runsTotal = BoneyardTBC_DO.Tracker.GetDungeonRunsDone(routeStep)
                 break
             end
         end
@@ -76,39 +76,52 @@ function Sync.SerializeStatus()
     end
     local repStr = table.concat(repParts, ":")
 
-    return string.format("%s:%d,%d,%s,%d,%d,%s,%s",
-        MSG_STATUS, level, step, dungeon, runsDone, runsTotal, mode, repStr)
+    return string.format("%s:%d,%d,%d,%s,%d,%d,%s,%s",
+        MSG_STATUS, PROTOCOL_VERSION, level, step, dungeon, runsDone, runsTotal, mode, repStr)
 end
 
 --------------------------------------------------------------------------------
 -- DeserializeStatus: Parse a STATUS message payload into a table
--- Input: the portion after "STATUS:" e.g. "63,12,SLAVE_PENS,8,32,balanced,6000:4500:0:0:1050:0"
+-- Input: the portion after "STATUS:" e.g. "1,63,12,SLAVE_PENS,8,32,balanced,6000:4500:0:0:1050:0"
 -- Returns: table with level, currentStep, dungeon, runsDone, runsTotal, mode, reps, lastSeen, isOnline
+--          Returns nil for unknown protocol versions (graceful ignore)
 --------------------------------------------------------------------------------
 function Sync.DeserializeStatus(payload)
-    -- payload format: lvl,step,dungeon,runsDone,runsTotal,mode,HH:CE:CO:KT:LC:SH
+    if not payload or payload == "" then return nil end
+
+    -- payload format: ver,lvl,step,dungeon,runsDone,runsTotal,mode,HH:CE:CO:KT:LC:SH
     -- Split on commas, preserving empty fields (e.g. "1,1,,0" -> {"1","1","","0"})
     local parts = {}
     for part in (payload .. ","):gmatch("(.-),") do
         parts[#parts + 1] = part
     end
 
-    if #parts < 7 then return nil end
+    if #parts < 8 then return nil end
+
+    -- Check protocol version — ignore messages from newer clients
+    local version = tonumber(parts[1])
+    if not version or version > PROTOCOL_VERSION then return nil end
+
+    -- Validate required numeric fields
+    local level = tonumber(parts[2])
+    local currentStep = tonumber(parts[3])
+    if not level or not currentStep then return nil end
 
     local result = {
-        level       = tonumber(parts[1]) or 0,
-        currentStep = tonumber(parts[2]) or 1,
-        dungeon     = parts[3] ~= "" and parts[3] or nil,
-        runsDone    = tonumber(parts[4]) or 0,
-        runsTotal   = tonumber(parts[5]) or 0,
-        mode        = parts[6] or "balanced",
+        version     = version,
+        level       = level,
+        currentStep = currentStep,
+        dungeon     = parts[4] ~= "" and parts[4] or nil,
+        runsDone    = tonumber(parts[5]) or 0,
+        runsTotal   = tonumber(parts[6]) or 0,
+        mode        = parts[7] or "balanced",
         reps        = {},
         lastSeen    = time(),
         isOnline    = true,
     }
 
-    -- Parse rep values (colon-separated in the 7th field)
-    local repStr = parts[7] or ""
+    -- Parse rep values (colon-separated in the 8th field)
+    local repStr = parts[8] or ""
     local repValues = {}
     for val in (repStr .. ":"):gmatch("(.-):") do
         repValues[#repValues + 1] = tonumber(val) or 0

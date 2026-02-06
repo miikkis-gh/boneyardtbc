@@ -159,14 +159,36 @@ end
 -- when another opens or when the user clicks elsewhere.
 local activeDropdownMenu = nil
 
-function Widgets.CreateDropdown(parent, items, default, onSelect)
-    local BUTTON_WIDTH = 150
-    local BUTTON_HEIGHT = 24
-    local ITEM_HEIGHT = 20
+local DROPDOWN_WIDTH  = 150
+local DROPDOWN_HEIGHT = 24
+local DROPDOWN_ITEM_HEIGHT = 20
 
+-- Create or reuse a single item button inside a dropdown menu
+local function CreateOrReuseItemButton(menu, index)
+    local existing = menu.buttons[index]
+    if existing then return existing end
+
+    local itemBtn = CreateFrame("Button", nil, menu, "BackdropTemplate")
+    itemBtn:SetSize(DROPDOWN_WIDTH - 2, DROPDOWN_ITEM_HEIGHT)
+    itemBtn:SetBackdrop(BACKDROP_DROPDOWN_ITEM)
+
+    local itemText = itemBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    itemText:SetPoint("LEFT", itemBtn, "LEFT", 8, 0)
+    itemText:SetPoint("RIGHT", itemBtn, "RIGHT", -8, 0)
+    itemText:SetJustifyH("LEFT")
+    itemBtn.itemText = itemText
+
+    itemBtn:SetHighlightTexture("Interface\\Buttons\\WHITE8x8")
+    itemBtn:GetHighlightTexture():SetVertexColor(1, 1, 1, 0.12)
+
+    menu.buttons[index] = itemBtn
+    return itemBtn
+end
+
+function Widgets.CreateDropdown(parent, items, default, onSelect)
     -- Main button
     local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
-    btn:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
+    btn:SetSize(DROPDOWN_WIDTH, DROPDOWN_HEIGHT)
     btn:SetBackdrop(BACKDROP_DARK)
     btn:SetBackdropColor(0.15, 0.15, 0.15, 0.9)
     btn:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
@@ -209,8 +231,8 @@ function Widgets.CreateDropdown(parent, items, default, onSelect)
 
     local function BuildMenuItems()
         local itemCount = #btn.items
-        local menuHeight = (itemCount * ITEM_HEIGHT) + 4 -- 2px padding top/bottom
-        menu:SetSize(BUTTON_WIDTH, menuHeight)
+        local menuHeight = (itemCount * DROPDOWN_ITEM_HEIGHT) + 4 -- 2px padding top/bottom
+        menu:SetSize(DROPDOWN_WIDTH, menuHeight)
         menu:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 0, -1)
 
         -- Hide any excess buttons from previous builds
@@ -219,29 +241,9 @@ function Widgets.CreateDropdown(parent, items, default, onSelect)
         end
 
         for i, itemLabel in ipairs(btn.items) do
-            local itemBtn = menu.buttons[i]
+            local itemBtn = CreateOrReuseItemButton(menu, i)
 
-            if not itemBtn then
-                -- Create a new button only if we don't have one to reuse
-                itemBtn = CreateFrame("Button", nil, menu, "BackdropTemplate")
-                itemBtn:SetSize(BUTTON_WIDTH - 2, ITEM_HEIGHT)
-                itemBtn:SetBackdrop(BACKDROP_DROPDOWN_ITEM)
-
-                local itemText = itemBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                itemText:SetPoint("LEFT", itemBtn, "LEFT", 8, 0)
-                itemText:SetPoint("RIGHT", itemBtn, "RIGHT", -8, 0)
-                itemText:SetJustifyH("LEFT")
-                itemBtn.itemText = itemText
-
-                itemBtn:SetHighlightTexture("Interface\\Buttons\\WHITE8x8")
-                local itemHl = itemBtn:GetHighlightTexture()
-                itemHl:SetVertexColor(1, 1, 1, 0.12)
-
-                menu.buttons[i] = itemBtn
-            end
-
-            -- Update position, text, colors, and callback on every rebuild
-            itemBtn:SetPoint("TOPLEFT", menu, "TOPLEFT", 1, -((i - 1) * ITEM_HEIGHT) - 2)
+            itemBtn:SetPoint("TOPLEFT", menu, "TOPLEFT", 1, -((i - 1) * DROPDOWN_ITEM_HEIGHT) - 2)
             itemBtn:SetBackdropColor(0, 0, 0, 0)
             itemBtn.itemText:SetText(itemLabel)
 
@@ -324,10 +326,10 @@ end
 -- Has :SetSelected(bool) to toggle appearance.
 ----------------------------------------------------------------------
 
-function Widgets.CreateTabButton(parent, label, onClick)
-    local TAB_WIDTH = 100
-    local TAB_HEIGHT = 28
+local TAB_WIDTH  = 100
+local TAB_HEIGHT = 28
 
+function Widgets.CreateTabButton(parent, label, onClick)
     local tab = CreateFrame("Button", nil, parent, "BackdropTemplate")
     tab:SetSize(TAB_WIDTH, TAB_HEIGHT)
     tab:SetBackdrop({

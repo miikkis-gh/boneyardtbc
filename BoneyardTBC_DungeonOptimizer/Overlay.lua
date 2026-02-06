@@ -13,6 +13,7 @@ local Overlay = BoneyardTBC_DO.Overlay
 local LOCKOUT_MAX = 5
 local LOCKOUT_WINDOW = 3600 -- 1 hour in seconds
 local UPDATE_INTERVAL = 1   -- refresh every 1 second
+local SESSION_TIMEOUT = 21600 -- 6 hours: sessions older than this reset on login
 
 -- WoW Sound IDs (TBC Classic compatible)
 local SOUNDS = {
@@ -259,10 +260,10 @@ function Overlay.UpdateSessionStats()
     -- Runs
     Overlay.runsVal:SetText(tostring(Overlay.sessionRuns))
 
-    -- Session duration
+    -- Session duration (time() persists across /reload)
     local sessionDuration = 0
     if Overlay.sessionStartTime then
-        sessionDuration = GetTime() - Overlay.sessionStartTime
+        sessionDuration = time() - Overlay.sessionStartTime
     end
 
     local dash = "\226\128\148"
@@ -368,10 +369,10 @@ function Overlay.GetCurrentFactionAbbrev()
 end
 
 --------------------------------------------------------------------------------
--- StartSession: Initialize session tracking (called on PLAYER_LOGIN)
+-- StartSession: Initialize fresh session tracking
 --------------------------------------------------------------------------------
 function Overlay.StartSession()
-    Overlay.sessionStartTime = GetTime()
+    Overlay.sessionStartTime = time()
     Overlay.sessionRuns = 0
     Overlay.sessionRunTimes = {}
     Overlay.currentRunStart = nil
@@ -396,6 +397,39 @@ function Overlay.StartSession()
 
     -- Snapshot current standings for milestone detection
     Overlay.SnapshotStandings()
+    Overlay.SaveSession()
+end
+
+--------------------------------------------------------------------------------
+-- RestoreSession: Load session state from saved data
+--------------------------------------------------------------------------------
+function Overlay.RestoreSession(session)
+    Overlay.sessionStartTime = session.startTime
+    Overlay.sessionXPStart = session.xpStart or 0
+    Overlay.sessionLevelStart = session.levelStart or 1
+    Overlay.sessionRuns = session.runs or 0
+    Overlay.sessionRunTimes = session.runTimes or {}
+    Overlay.sessionRepStarts = session.repStarts or {}
+    Overlay.currentRunStart = nil
+
+    Overlay.SnapshotStandings()
+end
+
+--------------------------------------------------------------------------------
+-- SaveSession: Persist session state to SavedVariables
+--------------------------------------------------------------------------------
+function Overlay.SaveSession()
+    local db = BoneyardTBC_DO.module and BoneyardTBC_DO.module.db
+    if not db then return end
+
+    db.session = {
+        startTime  = Overlay.sessionStartTime,
+        xpStart    = Overlay.sessionXPStart,
+        levelStart = Overlay.sessionLevelStart,
+        runs       = Overlay.sessionRuns,
+        runTimes   = Overlay.sessionRunTimes,
+        repStarts  = Overlay.sessionRepStarts,
+    }
 end
 
 --------------------------------------------------------------------------------
@@ -465,6 +499,7 @@ function Overlay.OnInstanceExit()
         Overlay.currentRunStart = nil
     end
     Overlay.sessionRuns = Overlay.sessionRuns + 1
+    Overlay.SaveSession()
 end
 
 --------------------------------------------------------------------------------
@@ -506,9 +541,27 @@ function Overlay.SetVisible(visible)
 end
 
 --------------------------------------------------------------------------------
--- Initialize: Create frame and start session (called from DungeonOptimizer.lua)
+-- Initialize: Create frame and restore or start session
+-- Restores previous session if it exists and is recent (within SESSION_TIMEOUT).
+-- Otherwise starts a fresh session. This preserves stats across /reload.
 --------------------------------------------------------------------------------
 function Overlay.Initialize()
     Overlay.CreateOverlayFrame()
-    Overlay.StartSession()
+
+    -- Ensure player state is read before snapshotting session baselines.
+    -- Initialize runs on PLAYER_LOGIN, but Tracker reads state on
+    -- PLAYER_ENTERING_WORLD which fires later. Force an early read so
+    -- StartSession gets real values instead of defaults (level 1, XP 0).
+    if BoneyardTBC_DO.Tracker and not BoneyardTBC_DO.Tracker.playerState then
+        BoneyardTBC_DO.Tracker.ReadPlayerState()
+    end
+
+    local db = BoneyardTBC_DO.module and BoneyardTBC_DO.module.db
+    if db and db.session and db.session.startTime
+        and (time() - db.session.startTime) < SESSION_TIMEOUT
+        and (db.session.levelStart or 0) >= 58 then
+        Overlay.RestoreSession(db.session)
+    else
+        Overlay.StartSession()
+    end
 end

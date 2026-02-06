@@ -67,7 +67,8 @@ function BoneyardTBC_DO.Optimizer.CalculateDungeonXP(dungeonKey, playerLevel)
 
     -- Player is above the dungeon's max level: reduce by 10% per level over
     local reduction = 1 - 0.10 * (playerLevel - maxLevel)
-    return math.floor(math.max(base * 0.20, base * reduction))
+    if reduction <= 0 then return 0 end
+    return math.floor(base * reduction)
 end
 
 --------------------------------------------------------------------------------
@@ -121,6 +122,7 @@ function BoneyardTBC_DO.Optimizer.CalculateBalancedRoute(startLevel, startXP, cu
 
             if dungeon then
                 local faction = step.faction or dungeon.faction
+                step.startRep = reps[faction] or 0
 
                 if step.runs == -1 then
                     -----------------------------------------------------------------

@@ -12,3 +12,7 @@ Tracker.lua
 Sync.lua
 Overlay.lua
 UI.lua
+UI_Setup.lua
+UI_Route.lua
+UI_Tracker.lua
+UI_Guild.lua

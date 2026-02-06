@@ -291,7 +291,6 @@ minimapInitFrame:SetScript("OnEvent", function(self, event, addonName)
 end)
 
 -- Left-click: toggle main window, Right-click: toggle overlay
-minimapBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 minimapBtn:SetScript("OnClick", function(self, button)
     if button == "LeftButton" then
         BoneyardTBC.MainFrame:Toggle()
